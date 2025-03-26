@@ -4,7 +4,7 @@ Create Database
 =============================================================
 Script Purpose:
     This script creates a new database named 'DataWarehouse' after checking if it already exists. 
-    If the database exists, it is dropped and recreated.
+    If the database exists, it is dropped and created again.
 	
 WARNING:
     Running this script will drop the entire 'DataWarehouse' database if it exists. 
@@ -13,4 +13,5 @@ WARNING:
 */
 
 DROP DATABASE IF EXISTS datawarehouse;
+
 CREATE DATABASE datawarehouse;
