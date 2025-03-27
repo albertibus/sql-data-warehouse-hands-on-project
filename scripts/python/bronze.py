@@ -9,7 +9,7 @@ logger = logging.getLogger("BRONZE")
 TABLES = {
     "crm": [
         ("bronze.crm_customer_info", "customer_info.csv"),
-        ("bronze.crm_prd_info", "producer_info.csv"),
+        ("bronze.crm_prd_info", "product_info.csv"),
         ("bronze.crm_sales_details", "sales_details.csv"),
     ],
     "erp": [

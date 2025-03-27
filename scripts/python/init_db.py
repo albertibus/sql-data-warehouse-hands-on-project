@@ -2,20 +2,24 @@ import sys
 import logging
 from utils.psql_commands import DB_NAME, run_psql_script as psql
 
-
 logger = logging.getLogger("INIT_DB")
 IGNORABLE_ERRORS = ["is being accessed by other users"]
 
 SQL_SCRIPTS = [
     ("Setting up the database", "./scripts/sql/drop_and_create.sql", "postgres"),
     (
-        "Instantiating database schemas...",
+        "Instantiating database schemas",
         "./scripts/sql/set_up_datawarehouse.sql",
         DB_NAME,
     ),
     (
-        "Instantiating bronze layer tables...",
+        "Instantiating bronze layer tables",
         "./scripts/sql/bronze/ddl_bronze.sql",
+        DB_NAME,
+    ),
+    (
+        "Instantiating silver layer tables",
+        "./scripts/sql/silver/ddl_silver.sql",
         DB_NAME,
     ),
 ]
@@ -38,15 +42,22 @@ def set_up_data_warehouse():
         None: This function does not return anything. It only logs the status of each SQL script execution.
     """
     for message, script, dbname in SQL_SCRIPTS:
-        logger.info(message)
-        success = psql(
-            sql_script=script,
-            dbname=dbname if dbname else None,
-            ignorable_errors=IGNORABLE_ERRORS,
-        )
-        if not success:
+        logger.info(f"Starting: {message}")
+
+        try:
+            success = psql(
+                sql_script=script,
+                dbname=dbname if dbname else None,
+                ignorable_errors=IGNORABLE_ERRORS,
+            )
+            if not success:
+                logger.error(f"Failed to execute {message}. Exiting.")
+                sys.exit(1)
+            logger.info(f"SUCCESS: {message}")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while executing {message}.")
+            logger.error(f"Error details: {str(e)}")
             sys.exit(1)
-        logger.info("SUCCESS")
 
 
 if __name__ == "__main__":

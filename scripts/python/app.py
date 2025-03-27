@@ -1,6 +1,6 @@
 from utils.logs import configure_logger
-from initdb import set_up_data_warehouse
-from loadbronze import load_bronze_layer
+from init_db import set_up_data_warehouse
+from bronze import load_bronze_layer
 
 
 if __name__ == "__main__":
