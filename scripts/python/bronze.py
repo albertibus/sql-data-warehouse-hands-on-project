@@ -1,23 +1,10 @@
 import sys
 from datetime import datetime
 from utils.logs import logging
-from utils.psql_commands import run_psql_command as psql
+from utils.psql_commands import TABLES, run_psql_command as psql
 
 
 logger = logging.getLogger("BRONZE")
-
-TABLES = {
-    "crm": [
-        ("bronze.crm_customer_info", "customer_info.csv"),
-        ("bronze.crm_prd_info", "product_info.csv"),
-        ("bronze.crm_sales_details", "sales_details.csv"),
-    ],
-    "erp": [
-        ("bronze.erp_cust_az12", "CUST_AZ12.csv"),
-        ("bronze.erp_loc_a101", "LOC_A101.csv"),
-        ("bronze.erp_px_cat_g1v2", "PX_CAT_G1V2.csv"),
-    ],
-}
 
 
 def load_tables(source: str, table_file_pairs: list[tuple[str, str]]) -> float:
@@ -38,14 +25,16 @@ def load_tables(source: str, table_file_pairs: list[tuple[str, str]]) -> float:
     total_time = 0
 
     for table, filename in table_file_pairs:
-        logger.info(f"Truncating table: {table}")
-        if not psql(command_str=f"TRUNCATE TABLE {table}"):
+        logger.info(f"Truncating table: bronze.{table}")
+        if not psql(command_str=f"TRUNCATE TABLE bronze.{table}"):
             return -1
 
         start_time = datetime.now()
         file_path = f"./datasets/source_{source}/{filename}"
-        copy_command = rf"\COPY {table} FROM {file_path} DELIMITER ',' CSV HEADER;"
-        logger.info(f"Inserting data into: {table}")
+        copy_command = (
+            rf"\COPY bronze.{table} FROM {file_path} DELIMITER ',' CSV HEADER;"
+        )
+        logger.info(f"Inserting data into: bronze.{table}")
 
         if not psql(command_str=copy_command):
             return -1

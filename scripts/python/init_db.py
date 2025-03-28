@@ -51,7 +51,6 @@ def set_up_data_warehouse():
                 ignorable_errors=IGNORABLE_ERRORS,
             )
             if not success:
-                logger.error(f"Failed to execute {message}. Exiting.")
                 sys.exit(1)
             logger.info(f"SUCCESS: {message}")
         except Exception as e:

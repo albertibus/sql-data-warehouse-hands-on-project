@@ -12,6 +12,19 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "datawarehouse")
 DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+TABLES = {
+    "crm": [
+        ("crm_customer_info", "customer_info.csv"),
+        ("crm_prd_info", "product_info.csv"),
+        ("crm_sales_details", "sales_details.csv"),
+    ],
+    "erp": [
+        ("erp_cust_az12", "CUST_AZ12.csv"),
+        ("erp_loc_a101", "LOC_A101.csv"),
+        ("erp_px_cat_g1v2", "PX_CAT_G1V2.csv"),
+    ],
+}
+
 # Logger configuration
 logger = logging.getLogger("PSQL")
 
