@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres_db
+    environment:
+      - POSTGRES_DB=datawarehouse
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=1234
+    ports:
+      - "5432:5432"  
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+  app:
+    build: .
+    container_name: app_env
+    environment:
+      - DB_USER=postgres
+      - DB_PASSWORD=1234
+      - DB_HOST=postgres 
+      - DB_PORT=5432
+      - DB_NAME=datawarehouse
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  app_network:
+    driver: bridge
