@@ -111,6 +111,31 @@ def map_crm_sales_details_date_columns(x):
     return datetime.strptime(str(x), "%Y%m%d").date()
 
 
+def map_erp_loc_a101_cntry(x):
+    """
+    Maps country codes to full country names.
+
+    This function takes a country code (e.g., "DE", "USA", "US") and returns the full country name
+    (e.g., "Germany", "United States"). It also handles empty strings and None values by returning "N/A".
+
+    Args:
+        x (str): A country code, which can be a string representing a country abbreviation (e.g., "DE", "US", "USA").
+
+    Returns:
+        str: The full country name if a valid code is provided (e.g., "Germany", "United States"),
+             or "N/A" if the input is an empty string or None. Otherwise, returns the original input.
+    """
+    match x:
+        case "DE":
+            return "Germany"
+        case "USA" | "US":
+            return "United States"
+        case "" | None:
+            return "N/A"
+        case _:
+            return x
+
+
 def extract_data(engine, table_file_pairs: list[tuple[str, str]]) -> dict:
     """
     Extracts data from bronze layer tables and returns them as a dictionary of DataFrames.
@@ -133,7 +158,7 @@ def extract_data(engine, table_file_pairs: list[tuple[str, str]]) -> dict:
         for table, _ in table_file_pairs:
             start_time_table = datetime.now()
             sql_query = f"SELECT * FROM bronze.{table}"
-            logger.info(f"Extracting data from table: {table}")
+            logger.info(f"Extracting data from table: bronze.{table}")
             df = pd.read_sql(sql_query, engine)
 
             table_extract_duration = (datetime.now() - start_time_table).total_seconds()
@@ -146,7 +171,6 @@ def extract_data(engine, table_file_pairs: list[tuple[str, str]]) -> dict:
         logger.info(
             f"Total bronze layer extraction time: {(datetime.now() - extraction_start_time).total_seconds():.2f} seconds"
         )
-
     except Exception as e:
         logger.error(f"Error extracting data: {str(e)}")
         raise Exception(f"Error extracting data: {str(e)}")
@@ -161,7 +185,7 @@ def clean_and_load_crm_customer_info(engine, df: pd.DataFrame):
     Applies type casting, removes invalid or duplicate records based on the customer ID,
     trims unwanted spaces in string fields, and standardizes values for gender and
     marital status. The cleaned and enriched data is then loaded into the
-    `silver.crm_customer_info` table using the provided SQLAlchemy engine.
+    'silver.crm_customer_info' table using the provided SQLAlchemy engine.
 
     Args:
         engine (SQLAlchemy Engine): Database connection engine.
@@ -237,7 +261,7 @@ def clean_and_load_crm_prd_info(engine, df: pd.DataFrame):
     Performs type casting, handles null and invalid values, enriches the data by calculating
     end dates, derives new columns such as category ID, and standardizes product line
     classifications. Ensures data consistency and completeness before loading the result
-    into the `silver.crm_prd_info` table using the provided SQLAlchemy engine.
+    into the 'silver.crm_prd_info' table using the provided SQLAlchemy engine.
 
     Args:
         engine (SQLAlchemy Engine): Database connection engine.
@@ -303,9 +327,9 @@ def clean_and_load_crm_sales_details(engine, df: pd.DataFrame):
     Cleans and loads CRM sales details data into the silver layer.
 
     Applies date formatting to order, shipment, and due dates using mapping logic. Ensures
-    the business rule `sales = quantity * price` is satisfied, correcting values when needed.
+    the business rule 'sales = quantity * price' is satisfied, correcting values when needed.
     After validation and transformation, loads the cleaned data into the
-    `silver.crm_sales_details` table using the provided SQLAlchemy engine.
+    'silver.crm_sales_details' table using the provided SQLAlchemy engine.
 
     Args:
         engine (SQLAlchemy Engine): Database connection engine.
@@ -351,11 +375,153 @@ def clean_and_load_crm_sales_details(engine, df: pd.DataFrame):
         raise Exception(f"Error cleaning crm_sales_details: {str(e)}")
 
 
+def clean_and_load_erp_cust_az12(engine, df: pd.DataFrame):
+    """
+    Cleans and loads ERP customer data into the silver layer.
+
+    The function performs data transformations on the 'cid', 'bdate', and 'gen' fields, ensuring
+    consistency and validation. It removes the first 3 characters of 'cid' if it starts with 'NAS',
+    checks that 'bdate' is not a future date, and standardizes 'gen' to 'Female', 'Male', or 'N/A'.
+
+    After cleaning, the data is loaded into the 'silver.erp_cust_az12' table.
+
+    Args:
+        engine (SQLAlchemy Engine): Database connection engine.
+        df (pd.DataFrame): DataFrame containing raw customer data.
+
+    Returns:
+        None
+    """
+    try:
+        logger.info("Processing erp_cust_az12 table")
+        start_time = datetime.now()
+
+        # Match 'cid' str format with crm_cust_info table 'cst_id' format
+        # Vectorization: Remove first 3 characters if 'cid' starts with 'NAS' (Trying a different approach in order to practice)
+        df["cid"] = df["cid"].where(
+            ~df["cid"].str.startswith("NAS"), df["cid"].str[3:].str.strip()
+        )
+
+        # Check if 'bdate' is later than the current date; if so, set the value to null
+        current_date = pd.Timestamp("today")
+        df["bdate"] = pd.to_datetime(df["bdate"], errors="coerce")
+        df["bdate"] = df["bdate"].where(df["bdate"] < current_date, pd.NaT)
+
+        # Data standardization and consistency for 'gen'
+        df["gen"] = df["gen"].astype(str).str.strip()
+        df.loc[df["gen"].str.strip().str.upper() == "F", "gen"] = "Female"
+        df.loc[df["gen"].str.strip().str.upper() == "M", "gen"] = "Male"
+        df.loc[df["gen"].str.len() == 0, "gen"] = "N/A"
+
+        # Load data into the database
+        df.to_sql(
+            "erp_cust_az12",
+            schema="silver",
+            con=engine,
+            if_exists="append",
+            index=False,
+        )
+
+        total_duration = (datetime.now() - start_time).total_seconds()
+        logger.info(
+            f"Table erp_cust_az12 processing time: {total_duration:.2f} seconds"
+        )
+    except Exception as e:
+        logger.error(f"Error cleaning erp_cust_az12: {str(e)}")
+        raise Exception(f"Error cleaning erp_cust_az12: {str(e)}")
+
+
+def clean_and_load_erp_loc_a101(engine, df: pd.DataFrame):
+    """
+    Cleans and loads ERP location data into the silver layer.
+
+    This function performs data transformations on the 'cid' and 'cntry' fields to ensure consistency
+    and standardization. It strips whitespace from the 'cid' column, removes hyphens from 'cid' if present,
+    and standardizes the 'cntry' column by applying a custom mapping function to convert country codes
+    into full country names.
+
+    After cleaning, the data is loaded into the 'silver.erp_loc_a101' table.
+
+    Args:
+        engine (SQLAlchemy Engine): Database connection engine.
+        df (pd.DataFrame): DataFrame containing raw location data.
+
+    Returns:
+        None
+    """
+    try:
+        logger.info("Processing erp_loc_a101 table")
+        start_time = datetime.now()
+
+        # Match 'cid' str format with crm_cust_info table 'cst_key' format
+        df["cid"] = df["cid"].astype(str).str.strip()
+        df.loc[df["cid"].str.contains("-"), "cid"] = df.loc[
+            df["cid"].str.contains("-"), "cid"
+        ].str.replace("-", "")
+
+        # Data standardization and consistency for 'cntry'
+        df["cntry"] = df["cntry"].astype(str).str.strip()
+        df["cntry"] = df["cntry"].apply(lambda x: map_erp_loc_a101_cntry(x))
+
+        # Load data into the database
+        df.to_sql(
+            "erp_loc_a101",
+            schema="silver",
+            con=engine,
+            if_exists="append",
+            index=False,
+        )
+
+        total_duration = (datetime.now() - start_time).total_seconds()
+        logger.info(f"Table erp_loc_a101 processing time: {total_duration:.2f} seconds")
+    except Exception as e:
+        logger.error(f"Error cleaning erp_loc_a101: {str(e)}")
+        raise Exception(f"Error cleaning erp_loc_a101: {str(e)}")
+
+
+def load_erp_px_cat_g1v2(engine, df: pd.DataFrame):
+    """
+    Loads ERP PX category data into the silver layer.
+
+    This function directly loads the provided DataFrame into the 'erp_px_cat_g1v2' table in the database.
+    No data cleansing or transformations are applied as the data is already in good quality.
+
+    After loading, the data is appended to the table, and the processing time is logged.
+
+    Args:
+        engine (SQLAlchemy Engine): Database connection engine.
+        df (pd.DataFrame): DataFrame containing raw ERP PX category data.
+
+    Returns:
+        None
+    """
+    try:
+        logger.info("Processing erp_px_cat_g1v2 table")
+        start_time = datetime.now()
+
+        # Load data into the database
+        df.to_sql(
+            "erp_px_cat_g1v2",
+            schema="silver",
+            con=engine,
+            if_exists="append",
+            index=False,
+        )
+
+        total_duration = (datetime.now() - start_time).total_seconds()
+        logger.info(
+            f"Table erp_px_cat_g1v2 processing time: {total_duration:.2f} seconds"
+        )
+    except Exception as e:
+        logger.error(f"Error cleaning erp_px_cat_g1v2: {str(e)}")
+        raise Exception(f"Error cleaning erp_px_cat_g1v2: {str(e)}")
+
+
 def run_silver_layer():
     try:
         engine = create_engine(DB_URL)
         tables_files = [item for sublist in TABLES.values() for item in sublist]
-
+        silver_layer_start_time = datetime.now()
         ## Bronze
         # Data extraction
         dfs = extract_data(engine, tables_files)
@@ -372,6 +538,18 @@ def run_silver_layer():
         clean_and_load_crm_sales_details(engine=engine, df=dfs["crm_sales_details"])
         logger.info(
             f"Total CRM tables transform and load duration: {(datetime.now() - start_time).total_seconds():.2f} seconds"
+        )
+
+        logger.info(f"Transforming and loading ERP tables")
+        start_time = datetime.now()
+        clean_and_load_erp_cust_az12(engine=engine, df=dfs["erp_cust_az12"])
+        clean_and_load_erp_loc_a101(engine=engine, df=dfs["erp_loc_a101"])
+        logger.info(
+            f"Total ERP tables transform and load duration: {(datetime.now() - start_time).total_seconds():.2f} seconds"
+        )
+
+        logger.info(
+            f"Total silver layer loading time: {(datetime.now() - silver_layer_start_time).total_seconds():.2f} seconds"
         )
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
