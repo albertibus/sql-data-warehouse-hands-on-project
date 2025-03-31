@@ -205,8 +205,8 @@ def clean_and_load_crm_customer_info(engine, df: pd.DataFrame):
         str_columns = [
             "cst_firstname",
             "cst_lastname",
-            "cst_material_status",
-            "cst_gnder",
+            "cst_marital_status",
+            "cst_gndr",
         ]
         df[str_columns] = df[str_columns].astype("string")
 
@@ -221,7 +221,7 @@ def clean_and_load_crm_customer_info(engine, df: pd.DataFrame):
         )
 
         # Data standardization and consistency
-        df["cst_gnder"] = df["cst_gnder"].apply(
+        df["cst_gndr"] = df["cst_gndr"].apply(
             lambda x: (
                 "Male"
                 if pd.notna(x) and x.upper() == "M"
@@ -229,7 +229,7 @@ def clean_and_load_crm_customer_info(engine, df: pd.DataFrame):
             )
         )
 
-        df["cst_material_status"] = df["cst_material_status"].apply(
+        df["cst_marital_status"] = df["cst_marital_status"].apply(
             lambda x: (
                 "Married"
                 if pd.notna(x) and x.upper() == "M"
@@ -296,7 +296,7 @@ def clean_and_load_crm_prd_info(engine, df: pd.DataFrame):
         df["cat_id"] = df["prd_key"].str[:5].str.replace("-", "_")
 
         # Update 'prd_key' with the remaining characters (after the first 5)
-        df["prd_key"] = df["prd_key"].str[5:]
+        df["prd_key"] = df["prd_key"].str[6:]
 
         # Handle null or negative values in the 'prd_cost' column and replace with the mean
         prd_cost_mean = df["prd_cost"].mean()
@@ -544,6 +544,7 @@ def run_silver_layer():
         start_time = datetime.now()
         clean_and_load_erp_cust_az12(engine=engine, df=dfs["erp_cust_az12"])
         clean_and_load_erp_loc_a101(engine=engine, df=dfs["erp_loc_a101"])
+        load_erp_px_cat_g1v2(engine=engine, df=dfs["erp_px_cat_g1v2"])
         logger.info(
             f"Total ERP tables transform and load duration: {(datetime.now() - start_time).total_seconds():.2f} seconds"
         )
