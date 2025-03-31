@@ -22,6 +22,11 @@ SQL_SCRIPTS = [
         "./scripts/sql/silver/ddl_silver.sql",
         DB_NAME,
     ),
+    (
+        "Instantiating gold layer views",
+        "./scripts/sql/gold/ddl_gold.sql",
+        DB_NAME,
+    ),
 ]
 
 
