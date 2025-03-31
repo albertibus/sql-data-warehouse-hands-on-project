@@ -42,7 +42,7 @@ def configure_logger(log_level="INFO", log_to_file=False, log_file_path="app.log
         "disable_existing_loggers": False,
         "formatters": {
             "detailed": {
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s - [%(filename)s:%(lineno)d]",
+                "format": "%(asctime)s - %(name)-10s | %(levelname)s | %(message)s - [%(filename)s:%(lineno)d]",
             },
         },
         "handlers": handlers,

@@ -30,7 +30,7 @@ def load_tables(source: str, table_file_pairs: list[tuple[str, str]]) -> float:
             return -1
 
         start_time = datetime.now()
-        file_path = f"./datasets/source_{source}/{filename}"
+        file_path = f"./datasets/source_{source.lower()}/{filename}"
         copy_command = (
             rf"\COPY bronze.{table} FROM {file_path} DELIMITER ',' CSV HEADER;"
         )
